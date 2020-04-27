@@ -1,0 +1,1 @@
+int rustp(void);
