@@ -4,6 +4,16 @@
 #include <sys/errno.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <geom/geom_disk.h>
+
+// struct disk *
+// disk_alloc(void);a
+
+// void disk_create(struct disk *disk, int version);
+
+// void disk_destroy(struct disk *disk);
+
+
 #include "whatif.h"
 
 static int skel_loader(struct module *m, int what, void *arg)
@@ -11,6 +21,9 @@ static int skel_loader(struct module *m, int what, void *arg)
         //printf("event skel is called");
         int err = 0;
         int p = rustp();
+        struct disk *disk1 = disk_alloc();
+        0        
+
 
         switch (what) {
         case MOD_LOAD:
