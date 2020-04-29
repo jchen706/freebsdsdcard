@@ -1,7 +1,7 @@
 #![allow(warnings, unused_variables, dead_code, improper_ctypes, non_camel_case_types, non_snake_case, non_upper_case_globals)]
 
 
-
+//imported C function signatures using rust-bindgen
 
 use core::alloc::{GlobalAlloc, Layout};
 use core::fmt;
@@ -33,7 +33,6 @@ pub struct malloc_type {
     pub ks_handle: *mut raw::c_void,
 }
 
-// https://github.com/johalun/echo
 
 extern "C" {
     #[link_name = "M_DEVBUF"]  //M_DEVBUF is the device memory

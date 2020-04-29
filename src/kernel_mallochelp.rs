@@ -1,6 +1,6 @@
 //#![no_std]
 //#![allow(warnings, unused_variables, dead_code, improper_ctypes, non_camel_case_types, non_snake_case, non_upper_case_globals)]
-
+// this is reference code from johalun/echo
 use core::alloc::{GlobalAlloc, Layout};
 use core::fmt;
 use core::ptr;

@@ -1,17 +1,23 @@
-#include <sys/types.h>
-#include <sys/module.h>
-#include <sys/systm.h>
-#include <sys/errno.h>
-#include <sys/param.h>
-#include <sys/kernel.h>
 
+#include <sys/param.h>
+#include <sys/module.h>
+#include <sys/kernel.h>
+#include <sys/systm.h>
 
 #include <sys/bus.h>
-
-
+#include <sys/conf.h>
+#include <sys/bio.h>
+#include <sys/kthread.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/uio.h>
+#include <machine/bus.h>
 #include <geom/geom_disk.h>
 
 
+
+
+//Find a way to probe SD Card first
 
 // struct disk *
 // disk_alloc(void);a
@@ -21,27 +27,24 @@
 // void disk_destroy(struct disk *disk);
 
 
-#include "whatif.h"
 
 static int skel_loader(struct module *m, int what, void *arg)
 {
         //printf("event skel is called");
         int err = 0;
-        int p = rustp();
-        struct disk *disk1 = disk_alloc();
         
         //0        
 
 
         switch (what) {
         case MOD_LOAD:
-               
-                uprintf("Box that uses core alloc worked. Number is %d \n", p);
+                int sd_card = open("/dev/mmcsd0s1", O_RDONLY)
+                uprintf("Open the sd Card. Number is %d \n", sd_card);
                 uprintf("Skeleton KLD loaded.\n");
                 break;
         case MOD_UNLOAD:
                 
-                uprintf("Box that uses core alloc worked. Number is %d \n", p);
+                
                 uprintf("Skeleton KLD unloaded.\n");
                 break;
         default:
@@ -60,3 +63,6 @@ static moduledata_t skel_mod = {
 };
 
 DECLARE_MODULE(skeleton, skel_mod, SI_SUB_KLD, SI_ORDER_ANY);
+
+
+

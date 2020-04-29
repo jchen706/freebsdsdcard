@@ -7,6 +7,11 @@
 
 
 #include <sys/bus.h>
+#include <sys/conf.h>
+#include <sys/bio.h>
+#include <sys/kthread.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 
 #include <geom/geom_disk.h>
