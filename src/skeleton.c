@@ -20,7 +20,7 @@ static int skel_loader(struct module *m, int what, void *arg)
 {
         //printf("event skel is called");
         int err = 0;
-
+        int p;
       
         
         //0        
@@ -28,7 +28,7 @@ static int skel_loader(struct module *m, int what, void *arg)
 
         switch (what) {
         case MOD_LOAD:
-                int p = rustp();
+                p = rustp();
                 uprintf("Box that uses core alloc worked. Number is %d \n", p);
                 uprintf("Skeleton KLD loaded.\n");
                 break;
