@@ -9,6 +9,8 @@ I also put the QEMU files in the Qemu Folder. Inside the qemu folder includes th
 
 The QEMU image can be used by "unxz FreeBSD....img". 
 
+The image file name has to the same in qemu.sh to run the next command.
+
 On command line ./qemu.sh should run the qemu file.
 
 If you are making a new image, you can add cores by typing "-smp 4" to add four cores to the qemu image.
