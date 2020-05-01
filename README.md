@@ -3,7 +3,7 @@ We utilized FreeBSD 13.0 CURRENT image.
 The image can be downloaded from here : https://download.freebsd.org/ftp/snapshots/arm64/aarch64/ISO-IMAGES/13.0/. 
 
 Expect the source file to be change every day, so I forked it on the 4/17 for the 4/16 released image. 
-The forked FreeBSD link is here: 
+The forked FreeBSD link is here: https://github.com/jchen706/freebsd
 
 I also put the QEMU files in the Qemu Folder. Inside the qemu folder includes the compress 32G image that has Rust and FreeBSD source code downloaded.
 
