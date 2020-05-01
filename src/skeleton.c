@@ -28,7 +28,6 @@ static int skel_loader(struct module *m, int what, void *arg)
         //printf("event skel is called");
         int err = 0;
         int p = rustp();
-        struct disk *disk1 = disk_alloc();
         
         //0        
 

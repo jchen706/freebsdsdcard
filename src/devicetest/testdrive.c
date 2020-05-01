@@ -18,9 +18,18 @@
 #include <geom/geom_disk.h>
 
 #include <dev/spibus/spi.h>
+#include <dev/mmc/bridge.h>
+#include <dev/mmc/mmc_private.h>
+#include <dev/mmc/mmc_subr.h>
+#include <dev/mmc/mmcreg.h>
+#include <dev/mmc/mmcbrvar.h>
+#include <dev/mmc/mmcvar.h>
+
+#include "mmcbr_if.h"
+#include "mmcbus_if.h"
 //#include "spibus_if.h"
 //#include "mmcreg.h"
-
+//response size is 48 bits
 
 
 
@@ -30,6 +39,7 @@
 #define	SD_READ_MULTIPLE_BLOCK	18
 #define	ACMD_SD_SEND_OP_COND	41
 #define	SD_STOP_TRANSMISSION	12
+#define SD_APP_CMD    55
 
 
 struct sd_softc {
@@ -39,7 +49,25 @@ struct sd_softc {
     struct disk                    *sd_disk;
     struct bio_queue_head           sd_bioq;
     struct proc                    *sd_proc;
+    struct card_reg                *card_register;
+    
 };
+
+
+struct card_reg {
+    uint64_t cid[2];  //card identification number
+   
+    uint16_t rca;        //relative card address, local system address of the card
+                         //dynamically suggested by the card and approved by the host during intialization
+    
+    uint16_t dsr;           //driver state register, to configure the card's output drivers
+    uint64_t csd[2];     // card specific data, information about the card's operation conditions
+       
+    uint64_t scr;         //sd configuration register
+    uint32_t ocr;    // operation condition register
+    uint8_t ssr[512];   //sd status
+    uint32_t csr;     //information about card status
+}
 
 // struct sd_card_vars {
 //     // help reference from mmcsd.c source 
@@ -69,7 +97,7 @@ static int sd_detach(device_t dev){
 
 
 
-
+// attach device to the kernel system
 static int sd_attach(device_t dev) {
 
     //int error;
@@ -78,15 +106,13 @@ static int sd_attach(device_t dev) {
     //softc is automatically allcated and zerod by device is attached 
     struct sd_softc *sc = device_get_softc(dev);
 
-
-
-    sd_get_idle(sc);
-
     sc->dev = dev;
 
 
     //initialize the mutex
     mtx_init(&(_sc)->sd_mtx, device_get_nameunit(_sc->dev), "sd_card", MTX_DEF);
+
+   
 
     //from the mmc.c 
     // We'll probe and attach our children later, but before / mount */
@@ -100,7 +126,7 @@ static int sd_attach(device_t dev) {
 }
 
 
-
+//get the status of the register
 static int sd_get_status(device_t dev) {
     
     struct spi_command cmd;
@@ -113,14 +139,15 @@ static int sd_get_status(device_t dev) {
     tx_buf[0] = ACMD_SD_SEND_OP_COND; // check if the card is ready  41
     cmd.tx_cmd = &tx_buf[0];
     cmd.rx_cmd = &rx_buf[0];
-    cmd.tx_cmd_sz = 1;
-    cmd.rx_cmd_sz = 1;
+    cmd.tx_cmd_sz = 6;
+    cmd.rx_cmd_sz = 6;
     SPIBUS_TRANSFER(device_get_parent(dev), dev, &cmd);
 
     return (rx_buf[0]);
 
 }
 
+//set the sd card into idle mode 
 static int sd_get_idle(struct sd_softc *sc) {
     
     struct spi_command cmd;
@@ -133,8 +160,8 @@ static int sd_get_idle(struct sd_softc *sc) {
     tx_buf[0] = SD_GO_IDLE_STATE; // check if the card is ready  41
     cmd.tx_cmd = &tx_buf[0];
     cmd.rx_cmd = &rx_buf[0];
-    cmd.tx_cmd_sz = 1;
-    cmd.rx_cmd_sz = 1;
+    cmd.tx_cmd_sz = 6;
+    cmd.rx_cmd_sz = 6;
     SPIBUS_TRANSFER(device_get_parent(sc->dev), sc->dev, &cmd);
 
     return (rx_buf[0]);
@@ -143,7 +170,7 @@ static int sd_get_idle(struct sd_softc *sc) {
 
 
 
-
+//wait for the device to initalize
 static int sd_wait_for_device_ready(device_t dev) {
 
     while((sd_get_status(dev))!=0) {
@@ -158,6 +185,11 @@ static int sd_wait_for_device_ready(device_t dev) {
 static void sd_delayed_attach(void *arg)
 {
           struct s_softc *sc = arg;
+
+          sd_get_idle(sc);
+          //set cs signal low, set to negative mmcbr_set_chip_select funtion is in 
+
+          mmcbr_set_chip_select(dev, -1);
          
           sd_wait_for_device_ready(sc->dev);
 
@@ -178,6 +210,7 @@ static void sd_delayed_attach(void *arg)
 }
 
 static void sd_strategy(struct bio *bp){
+          //strategy for the bio
           struct sd_softc *sc = bp->bio_disk->d_drv1;
 
           mtx_lock(&sc->sd_mtx);
@@ -188,54 +221,57 @@ static void sd_strategy(struct bio *bp){
 }
 
 static void sd_task(void *arg) {
-          struct sd_softc *sc = arg;
-          struct bio *bp;
-          struct spi_command cmd;
-          uint8_t tx_buf[8], rx_buf[8];
-          int ss = sc->sd_disk->d_sectorsize;
-          daddr_t block, end;
-          char *vaddr;
+    //utilize from FreeBSD device driver book
+    //task is 
 
-          for (;;) {
-                  mtx_lock(&sc->sd_mtx);
-                  do {
-                          bp = bioq_first(&sc->sd_bioq);
-                          if (bp == NULL)
-                                  mtx_sleep(sc, &sc->sd_mtx, PRIBIO,
-                                      "sd", 0);
-                  } while (bp == NULL);
-                  bioq_remove(&sc->sd_bioq, bp);
-                  mtx_unlock(&sc->sd_mtx);
+    struct sd_softc *sc = arg;
+    struct bio *bp;
+    struct spi_command cmd;
+    uint8_t tx_buf[8], rx_buf[8];
+    int ss = sc->sd_disk->d_sectorsize;
+    daddr_t block, end;
+    char *vaddr;
 
-                  end = bp->bio_pblkno + (bp->bio_bcount / ss);
-                  for (block = bp->bio_pblkno; block < end; block++) {
-                          vaddr = bp->bio_data + (block - bp->bio_pblkno) * ss;
-                          if (bp->bio_cmd == BIO_READ) {
-                                  tx_buf[0] = SD_READ_SINGLE_BLOCK;
-                                  cmd.tx_cmd_sz = 1;
-                                  cmd.rx_cmd_sz = 1;
-                          } else {
-                                  tx_buf[0] = SD_STOP_TRANSMISSION;
-                                  cmd.tx_cmd_sz = 1;
-                                  cmd.rx_cmd_sz = 1;
-                          }
+    for (;;) {
+            mtx_lock(&sc->sd_mtx);
+            do {
+                    bp = bioq_first(&sc->sd_bioq);
+                    if (bp == NULL)
+                            mtx_sleep(sc, &sc->sd_mtx, PRIBIO,
+                                "sd", 0);
+            } while (bp == NULL);
+            bioq_remove(&sc->sd_bioq, bp);
+            mtx_unlock(&sc->sd_mtx);
 
-                          /* FIXME: This works only on certain devices. */
-                          tx_buf[1] = 0;
-                          tx_buf[2] = 0;
-                          tx_buf[3] = 0;
-                          tx_buf[4] = 0;
-                          cmd.tx_cmd = &tx_buf[0];
-                          cmd.rx_cmd = &rx_buf[0];
-                          cmd.tx_data = vaddr;
-                          cmd.rx_data = vaddr;
-                          cmd.tx_data_sz = ss;
-                          cmd.rx_data_sz = ss;
-                          SPIBUS_TRANSFER(device_get_parent(sc->sd_dev),
-                              sc->sd_dev, &cmd);
-                  }
-                  biodone(bp);
-          }
+            end = bp->bio_pblkno + (bp->bio_bcount / ss);
+            for (block = bp->bio_pblkno; block < end; block++) {
+                    vaddr = bp->bio_data + (block - bp->bio_pblkno) * ss;
+                    if (bp->bio_cmd == BIO_READ) {
+                            tx_buf[0] = SD_READ_SINGLE_BLOCK;
+                            cmd.tx_cmd_sz = 6;
+                            cmd.rx_cmd_sz = 6;
+                    } else {
+                            tx_buf[0] = SD_STOP_TRANSMISSION;
+                            cmd.tx_cmd_sz = 6;
+                            cmd.rx_cmd_sz = 6;
+                    }
+
+                    /* FIXME: This works only on certain devices. */
+                    tx_buf[1] = 0;
+                    tx_buf[2] = 0;
+                    tx_buf[3] = 0;
+                    tx_buf[4] = 0;
+                    cmd.tx_cmd = &tx_buf[0];
+                    cmd.rx_cmd = &rx_buf[0];
+                    cmd.tx_data = vaddr;
+                    cmd.rx_data = vaddr;
+                    cmd.tx_data_sz = ss;
+                    cmd.rx_data_sz = ss;
+                    SPIBUS_TRANSFER(device_get_parent(sc->sd_dev),
+                        sc->sd_dev, &cmd);
+            }
+            biodone(bp);
+    }
 }
 
 static device_method_t sd_methods[] = {

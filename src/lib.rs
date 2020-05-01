@@ -47,7 +47,7 @@ fn start(_argc: isize, _argv:*const *const u8) -> isize {
     //println!("Hello, alloc working!");
     //main();
     unsafe {
-         kernel_malloc::uprintf("reallocate in place undefined!\n\0".as_ptr() as *const i8);
+         kernel_malloc::uprintf("Uprintf in the start function!\n\0".as_ptr() as *const i8);
     }
 
 
@@ -57,14 +57,14 @@ fn start(_argc: isize, _argv:*const *const u8) -> isize {
 #[no_mangle]
 pub extern "C" fn rustp() -> i32 {
     unsafe {
-         kernel_malloc::uprintf("uprintf is working!\n\0".as_ptr() as *const i8);
+         kernel_malloc::uprintf("Uprintf in Rustp function !\n\0".as_ptr() as *const i8);
     }
     let mut y:i32 = 0;
     unsafe {
-        kernel_malloc::uprintf("printing before Box which uses malloc!\n\0".as_ptr() as *const i8);
+        kernel_malloc::uprintf("Uprinff before Box which uses malloc!\n\0".as_ptr() as *const i8);
         let x = Box::new(41);
         y = *x;       
-        kernel_malloc::uprintf("printing after Box so malloc works? !\n\0".as_ptr() as *const i8);
+        kernel_malloc::uprintf("Uprintf after Box so malloc work !\n\0".as_ptr() as *const i8);
     }
 
 
