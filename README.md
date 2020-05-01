@@ -5,7 +5,7 @@ The image can be downloaded from here : https://download.freebsd.org/ftp/snapsho
 Expect the source file to be change every day, so I forked it on the 4/17 for the 4/16 released image. 
 The forked FreeBSD link is here: https://github.com/jchen706/freebsd
 
-I also put the QEMU files in the Qemu Folder. Inside the qemu folder includes the compress 32G image that has Rust and FreeBSD source code downloaded.
+I also put the QEMU files in the Qemu Folder except the image which is too big to push. Inside the qemu folder includes build script to run the image.
 
 The QEMU image can be used by "unxz FreeBSD....img". 
 
