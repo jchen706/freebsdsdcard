@@ -6,13 +6,6 @@
 #include <sys/kernel.h>
 
 
-#include <sys/bus.h>
-
-
-#include <geom/geom_disk.h>
-
-
-
 // struct disk *
 // disk_alloc(void);a
 
@@ -40,7 +33,7 @@ static int skel_loader(struct module *m, int what, void *arg)
                 break;
         case MOD_UNLOAD:
                 
-                uprintf("Box that uses core alloc worked. Number is %d \n", p);
+                //uprintf("Box that uses core alloc worked. Number is %d \n", p);
                 uprintf("Skeleton KLD unloaded.\n");
                 break;
         default:
